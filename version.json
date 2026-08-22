@@ -1,0 +1,12 @@
+{
+  "version": "1.3.0",
+  "updated_at": "2026-08-22",
+  "author": "Av. Lütfi Serkan SAYOĞLU",
+  "changelog": [
+    "🏛️ Yeni Kategori Mimarisi: Asliye Hukuk, Sulh Hukuk, Asliye Ceza, Ağır Ceza, İcra Hukuk, İcra Ceza ve Savcılık ayrıştırıldı.",
+    "💰 Özel Dava Türleri Kategorisi: Alacak & Maddi Tazminat, İş Mahkemesi, Boşanma/Aile, Tüketici ve Tapu İptal davaları ayrı kategoriye alındı.",
+    "🔍 Akıllı Genel Arama: Örneğin \"Savunma\" yazıldığında Asliye Ceza, Ağır Ceza, İcra Ceza ve Savcılık Savunma dilekçeleri anında listelenir.",
+    "⚖️ İstinaf Dairesi Uyarlamaları: Hukuk dosyalarında \"İlgili Hukuk Dairesine\", Ceza dosyalarında \"İlgili Ceza Dairesine\" gönderim başlıkları standartlaştırıldı.",
+    "🏙️ Dinamik Şehir & BAM: Mersin yerel mahkemeleri ve Adana Bölge Adliye Mahkemesi istinaf çevresi tam entegre çalışmaktadır."
+  ]
+}
