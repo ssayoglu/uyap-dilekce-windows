@@ -83,6 +83,21 @@ function Ensure-Python {
 
 Ensure-Python
 
+# Çalışan eski süreçleri ve port 5678'i temizle
+try {
+    Get-NetTCPConnection -LocalPort 5678 -ErrorAction SilentlyContinue | ForEach-Object {
+        Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
+    }
+} catch {}
+
+try {
+    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.Name -match "^python" -and ($_.CommandLine -like "*win_app.py*" -or $_.CommandLine -like "*server.py*")
+    } | ForEach-Object {
+        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+} catch {}
+
 # 2. Klasörü hazırla
 if (!(Test-Path $TargetDir)) {
     New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null

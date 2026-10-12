@@ -16,6 +16,18 @@ import re
 import time
 from datetime import datetime
 
+# Windows pythonw.exe altında sys.stderr ve sys.stdout None olabilir, yönlendir
+if sys.stderr is None:
+    try:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")
+    except Exception:
+        pass
+if sys.stdout is None:
+    try:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")
+    except Exception:
+        pass
+
 PORT = 5678
 
 CURRENT_VERSION = "1.5.0"
@@ -3663,19 +3675,63 @@ HTML_PAGE = """<!DOCTYPE html>
 """
 
 class RequestHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Under pythonw.exe on Windows, sys.stderr is None; avoid AttributeError
+        if sys.stderr is not None:
+            try:
+                sys.stderr.write("%s - - [%s] %s\n" %
+                                 (self.address_string(),
+                                  self.log_date_time_string(),
+                                  format % args))
+            except Exception:
+                pass
+
     def do_GET(self):
-        if self.path == "/mazeret":
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(MAZERET_HTML.encode("utf-8"))
-        elif self.path == "/" or self.path.startswith("/?"):
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(HTML_PAGE.encode("utf-8"))
-        else:
-            self.send_error(404, "Not found")
+        try:
+            if self.path == "/mazeret":
+                body = MAZERET_HTML.encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(body)
+            elif self.path in ["/", "/index.html", "/index.htm"] or self.path.startswith("/?"):
+                body = HTML_PAGE.encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(body)
+            elif self.path == "/favicon.ico":
+                ico_path = os.path.join(REPO_DIR, "AppIcon.ico")
+                if os.path.exists(ico_path):
+                    with open(ico_path, "rb") as f:
+                        ico_data = f.read()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "image/x-icon")
+                    self.send_header("Content-Length", str(len(ico_data)))
+                    self.send_header("Connection", "close")
+                    self.end_headers()
+                    self.wfile.write(ico_data)
+                else:
+                    self.send_response(204)
+                    self.send_header("Connection", "close")
+                    self.end_headers()
+            else:
+                self.send_error(404, "Not found")
+        except Exception as e:
+            try:
+                err_body = f"Sunucu Hatasi: {str(e)}".encode("utf-8")
+                self.send_response(500)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", str(len(err_body)))
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(err_body)
+            except Exception:
+                pass
 
     def do_POST(self):
         if self.path == "/api/ai-generate":
@@ -3690,20 +3746,23 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             api_key = data.get("api_key", "").strip()
             
             if not story:
+                err_body = json.dumps({"success": False, "message": "Lütfen olay anlatımını giriniz."}).encode("utf-8")
                 self.send_response(400)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(err_body)))
+                self.send_header("Connection", "close")
                 self.end_headers()
-                self.wfile.write(json.dumps({"success": False, "message": "Lütfen olay anlatımını giriniz."}).encode("utf-8"))
+                self.wfile.write(err_body)
                 return
                 
             success, result, model = call_gemini_lawyer(story, template_id, current_court, api_key, template_title=template_title)
+            resp_body = json.dumps({"success": True, "data": result, "model": model}).encode("utf-8") if success else json.dumps({"success": False, "message": f"Gemini API hatası: {result}"}).encode("utf-8")
             self.send_response(200 if success else 500)
             self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(resp_body)))
+            self.send_header("Connection", "close")
             self.end_headers()
-            if success:
-                self.wfile.write(json.dumps({"success": True, "data": result, "model": model}).encode("utf-8"))
-            else:
-                self.wfile.write(json.dumps({"success": False, "message": f"Gemini API hatası: {result}"}).encode("utf-8"))
+            self.wfile.write(resp_body)
             return
 
         if self.path == "/generate":
@@ -4005,18 +4064,20 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             except Exception as e:
                 response = {"success": False, "message": f"Hata: {str(e)}"}
                 
+            resp_body = json.dumps(response).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(resp_body)))
+            self.send_header("Connection", "close")
             self.end_headers()
-            self.wfile.write(json.dumps(response).encode("utf-8"))
+            self.wfile.write(resp_body)
 
 def run():
     import threading
     threading.Thread(target=check_for_updates_silently, daemon=True).start()
-    socketserver.TCPServer.allow_reuse_address = True
     no_browser = "--no-browser" in sys.argv
     try:
-        server = socketserver.TCPServer(("127.0.0.1", PORT), RequestHandler)
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), RequestHandler)
     except OSError:
         if not no_browser:
             webbrowser.open(f"http://127.0.0.1:{PORT}")
@@ -4026,7 +4087,7 @@ def run():
         webbrowser.open(f"http://127.0.0.1:{PORT}")
     try:
         server.serve_forever()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, SystemExit):
         server.server_close()
 
 if __name__ == "__main__":

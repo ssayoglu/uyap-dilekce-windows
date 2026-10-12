@@ -16,12 +16,20 @@ if (!(Test-Path $TargetDir)) {
     exit
 }
 
-# Çalışan eski Python sunucu süreçlerini sonlandır (dosya kilitlerini kaldırmak için)
-Get-Process python, pythonw -ErrorAction SilentlyContinue | Where-Object {
-    try {
-        $_.CommandLine -like "*win_app.py*" -or $_.CommandLine -like "*server.py*"
-    } catch { $false }
-} | Stop-Process -Force -ErrorAction SilentlyContinue
+# Port 5678'i tutan veya win_app.py / server.py çalıştıran eski süreçleri sonlandır
+try {
+    Get-NetTCPConnection -LocalPort 5678 -ErrorAction SilentlyContinue | ForEach-Object {
+        Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
+    }
+} catch {}
+
+try {
+    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.Name -match "^python" -and ($_.CommandLine -like "*win_app.py*" -or $_.CommandLine -like "*server.py*")
+    } | ForEach-Object {
+        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+} catch {}
 
 if (Test-Path "$TargetDir\.git") {
     Write-Host "🔄 Git deposundan güncellemeler alınıyor..." -ForegroundColor Yellow
