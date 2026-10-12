@@ -9,8 +9,11 @@ import subprocess
 PORT = 5678
 
 def run_server():
-    from server import main as start_server
-    start_server()
+    import server
+    if hasattr(server, "main"):
+        server.main()
+    elif hasattr(server, "run"):
+        server.run()
 
 def launch_gui():
     time.sleep(1.0)

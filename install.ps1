@@ -37,6 +37,9 @@ $Shortcut.TargetPath = "pythonw.exe"
 $Shortcut.Arguments = """$TargetDir\win_app.py"""
 $Shortcut.WorkingDirectory = "$TargetDir"
 $Shortcut.Description = "UYAP Dilekçe & Şablon Yöneticisi"
+if (Test-Path "$TargetDir\AppIcon.ico") {
+    $Shortcut.IconLocation = "$TargetDir\AppIcon.ico,0"
+}
 $Shortcut.Save()
 
 Write-Host "========================================================" -ForegroundColor Green

@@ -27,7 +27,7 @@ def build_udf(paragraphs, output_file):
         
         for text, bold, italic, underline in runs:
             length = len(text)
-            c_attr = ['resolver="hvl-default"']
+            c_attr = ['resolver="hvl-default"', 'foreground="-16777216"']
             if bold: c_attr.append('bold="true"')
             if italic: c_attr.append('italic="true"')
             if underline: c_attr.append('underline="true"')
@@ -48,12 +48,71 @@ def build_udf(paragraphs, output_file):
   <properties><pageFormat mediaSizeName="1" leftMargin="70.8661413192749" rightMargin="42.51968479156494" topMargin="42.51968479156494" bottomMargin="42.51968479156494" paperOrientation="1" headerFOffset="14.17322826385498" footerFOffset="19.84251956939697" /></properties>
   <elements resolver="hvl-default">
 {''.join(elements_xml)}  </elements>
-  <styles><style name="default" description="Geçerli" family="Dialog" size="12" bold="false" italic="false" foreground="-13421773" FONT_ATTRIBUTE_KEY="javax.swing.plaf.FontUIResource[family=Dialog,name=Dialog,style=plain,size=12]" /><style name="hvl-default" family="Times New Roman" size="12" description="Gövde" /></styles>
+  <styles><style name="default" description="Geçerli" family="Dialog" size="12" bold="false" italic="false" foreground="-16777216" FONT_ATTRIBUTE_KEY="javax.swing.plaf.FontUIResource[family=Dialog,name=Dialog,style=plain,size=12]" /><style name="hvl-default" family="Times New Roman" size="12" foreground="-16777216" description="Gövde" /></styles>
   <data></data>
 </template>"""
 
     with zipfile.ZipFile(output_file, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("content.xml", template_xml.encode("utf-8"))
+
+def get_desktop_dir():
+    if sys.platform.startswith("win"):
+        try:
+            import winreg
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders")
+            desktop, _ = winreg.QueryValueEx(key, "Desktop")
+            winreg.CloseKey(key)
+            expanded = os.path.expandvars(desktop)
+            if os.path.exists(expanded):
+                return expanded
+        except Exception:
+            pass
+        userprofile = os.environ.get("USERPROFILE", "")
+        if userprofile:
+            for folder in [
+                os.path.join(userprofile, "OneDrive", "Desktop"),
+                os.path.join(userprofile, "OneDrive", "Masaüstü"),
+                os.path.join(userprofile, "Desktop"),
+                os.path.join(userprofile, "Masaüstü")
+            ]:
+                if os.path.exists(folder):
+                    return folder
+    return os.path.expanduser("~/Desktop")
+
+def open_in_uyap(file_path):
+    if sys.platform.startswith("win"):
+        try:
+            os.startfile(file_path)
+            return
+        except Exception:
+            pass
+        for cand in [
+            os.path.expandvars(r"%USERPROFILE%\AppData\Local\Programs\UYAP Dokuman Editoru\UyapDokumanEditoru.exe"),
+            os.path.expandvars(r"%ProgramFiles%\UYAP Dokuman Editoru\UyapDokumanEditoru.exe"),
+            os.path.expandvars(r"%ProgramFiles(x86)%\UYAP Dokuman Editoru\UyapDokumanEditoru.exe"),
+        ]:
+            if os.path.exists(cand):
+                subprocess.Popen([cand, file_path])
+                return
+        try:
+            subprocess.Popen(["cmd", "/c", "start", "", file_path], shell=True)
+            return
+        except Exception:
+            pass
+    elif sys.platform == "darwin":
+        for cand in [
+            "/Applications/Uyap Doküman Editörü.app",
+            "/Applications/Uyap Doku\u0308man Edito\u0308ru\u0308.app",
+        ]:
+            if os.path.exists(cand):
+                subprocess.Popen(["open", "-a", cand, file_path])
+                return
+        subprocess.Popen(["open", file_path])
+        return
+    try:
+        subprocess.Popen(["xdg-open", file_path])
+    except Exception:
+        pass
 
 
 # --- ŞABLON VERİTABANI ---
@@ -228,17 +287,17 @@ TEMPLATES = {
     },
     "⛓️ Tutukluluğa İtiraz ve Tahliye Dilekçesi": {
         "mahkeme": "MERSİN NÖBETÇİ ASLİYE CEZA MAHKEMESİNE\nGönderilmek Üzere\nMERSİN [..]. SULH CEZA HÂKİMLİĞİNE",
-        "talep": "TAHLİYE TALEPLİDİR",
-        "dosya": "Sorgu No: 2026/... Sorgu",
+        "talep": "TAHLİYE TALEPLİDİR (İvedidir)",
+        "dosya": "Soruşturma No: 2026/... S. | Sorgu No: 2026/... D.İş (veya Esas No)",
         "m_sifat": "ŞÜPHELİ / SANIK",
         "m_ad": "[Müvekkil Şüpheli/Sanık - T.C. 12345678901]",
-        "m_adres": "[Müvekkil Adresi / Cezaevi Bilgisi]",
-        "k_sifat": "MÜŞTEKİ",
-        "k_ad": "[Müşteki Adı Soyadı]",
-        "k_vekil": "[Müşteki Vekili]",
-        "konu": "Mersin .. Sulh Ceza Hâkimliği'nin ... tarihli tutuklama kararına itirazımız ve TAHLİYE talebimizdir.",
-        "aciklama": "1- Müvekkil hakkında verilen tutuklama kararı CMK 100 ve devamı maddelerine aykırıdır.\n2- Müvekkilin sabit ikametgah sahibi olması, delilleri karartma veya kaçma şüphesinin bulunmaması gözetilmemiştir.\n3- Tutuklama bir tedbirdir ve ölçülülük ilkesi gereği adli kontrol hükümleri uygulanmalıdır.",
-        "sonuc": "Yukarıda açıklanan nedenlerle; TUTUKLAMA KARARININ KALDIRILARAK MÜVEKKİLİN TAHLİYESİNE, Mahkemeniz aksi kanaatte ise adli kontrol hükümleri uygulanarak serbest bırakılmasına karar verilmesini vekâleten saygıyla arz ve talep ederiz."
+        "m_adres": "[Müvekkil Adresi / Bulunduğu Ceza İnfaz Kurumu]",
+        "k_sifat": "MÜŞTEKİ / KAMU HUKUKU",
+        "k_ad": "[Müşteki Adı Soyadı / K.H.]",
+        "k_vekil": "",
+        "konu": "[..] Hâkimliği'nin / Mahkemesi'nin [..] tarihli ve [Sorgu/D.İş/Esas No] sayılı kararı ile verilen TUTUKLAMA / TUTUKLULUK HALİNİN DEVAMI KARARINA İTİRAZLARIMIZIN SUNULMASI ile tutuklama kararının kaldırılarak müvekkilin BİHAKKIN TAHLİYESİNE, Hakimliğiniz/Mahkemeniz aksi kanaatte ise CMK m. 109 uyarınca ADLİ KONTROL hükümleriyle SERBEST BIRAKILMASI talebimizdir.",
+        "aciklama": "1- MÜVEKKİLİN AŞAMALARDAKİ TUTARLI SAVUNMASI VE İŞBİRLİĞİ: Müvekkil gerek kolluk, gerek savcılık gerekse sorgu/duruşma aşamasında baştan sona samimi, istikrarlı ve maddi gerçekle örtüşen savunmalarda bulunmuştur. Adli makamların çağrısına derhal uymuş, kaçma ya da gizlenme yönünde hiçbir girişimde bulunmamış, delillerin eksiksiz toplanması adına kolluk ve yargı mercileriyle tam bir işbirliği içerisinde olmuştur.\n2- KUVVETLİ SUÇ ŞÜPHESİNİ GÖSTEREN SOMUT DELİLLERİN BULUNMAMASI (CMK m. 100/1): 5271 sayılı CMK'nın 100/1. maddesi uyarınca tutuklama kararı verilebilmesi için 'kuvvetli suç şüphesinin varlığını gösteren somut delillerin' bulunması emredici bir yasal zorunluluktur. Dosya kapsamında müvekkilin atılı suçu işlediğine dair her türlü şüpheden uzak, kesin ve inandırıcı hiçbir somut delil bulunmamaktadır. Evrensel 'şüpheden sanık yararlanır' (in dubio pro reo) ilkesi gereğince soyut varsayımlarla tutuklama yoluna gidilemez; yargılama neticesinde müvekkil hakkında beraat kararı verilmesi kuvvetle muhtemeldir.\n3- KAÇMA VE SAKLANMA ŞÜPHESİNİ UYANDIRAN SOMUT BİR OLGU BULUNMAMASI (CMK m. 100/2-a): CMK m. 100/2-a bendi uyarınca tutuklama kararı ancak kaçma, saklanma veya kaçacağı şüphesini uyandıran somut olguların varlığı halinde verilebilir. Müvekkil sabit ikametgâh, aile ve düzenli iş/sosyal çevre sahibidir. Dosyada müvekkilin kaçacağına ya da saklanacağına delil teşkil edebilecek tek bir somut hazırlık hareketi dahi mevcut değildir. Yargılama neticesinde beraat etme ihtimali dahi bulunan bir kişinin soyut kaçma şüphesiyle hürriyetinden yoksun bırakılması açıkça hukuka aykırıdır.\n4- DELİLLERİ YOK ETME, GİZLEME VEYA BASKI KURMA İHTİMALİNİN BULUNMAMASI (CMK m. 100/2-b): CMK m. 100/2-b maddesinde sayılan delilleri karartma veya tanık/mağdur üzerinde baskı kurma tehlikesi somut olayda tamamen bertaraf edilmiştir. Soruşturma/kovuşturma dosyasına esas tüm maddi deliller toplanmış, adli emanete alınmış ve muhafaza altına alınmıştır. Müvekkilin etki edebileceği ya da değiştirebileceği herhangi bir delil kalmadığı gibi taraflar üzerinde baskı yapabileceğine dair dosyaya yansıyan hiçbir olgu yoktur.\n5- KATALOG SUÇLARDA DAHİ TUTUKLAMANIN ZORUNLU OLMADIĞI VE SOMUTLAŞTIRMA GEREĞİ (CMK m. 100/3): CMK m. 100/3 hükmü hâkime mutlak bir tutuklama zorunluluğu getirmemektedir. Kanun koyucu 'tutuklama nedeni var SAYILABİLİR' ifadesini kullanarak tutuklamayı kesin bir karineye bağlamamış, somut delil arayışını zorunlu kılmıştır. İsnat edilen fiil katalog suçlar arasında yer alsa dahi, kaçma veya delil karartma şüphesini uyandıran somut olguların her bir şüpheli/sanık özelinde ayrı ayrı gösterilmesi ve gerekçelendirilmesi zorunludur. Karardaki matbu, basma kalıp ve gerekçesiz ifadeler Anayasa m. 141 ve CMK m. 34 anlamında gerekçe oluşturmaz.\n6- ÖLÇÜLÜLÜK VE ORANTILILIK İLKESİNİN AĞIR BİÇİMDE İHLAL EDİLMESİ (CMK m. 100/1, Anayasa m. 13 & 19): Tutuklama bir ceza infaz aracı değil; yargılamanın selametini sağlamaya matuf en son başvurulacak (ultima ratio) istisnai bir koruma tedbiridir. Müvekkilin tutukluluk hali fiilen peşin bir cezalandırmaya dönüşmüştür. Müvekkile isnat edilen suçun ceza alt ve üst sınırları, lehe yasal indirim sebepleri, infaz kanunundaki koşullu salıverilme ve denetimli serbestlik süreleri birlikte gözetildiğinde; tatbik edilen tutuklama tedbiri ölçülülük ilkesini ağır biçimde zedelemektedir.\n7- ADLİ KONTROL TEDBİRLERİNİN ÖNCELİĞİ VE YETERSİZLİK GEREKÇESİNİN BULUNMAMASI (CMK m. 101/2 ve m. 109): CMK m. 109'da düzenlenen adli kontrol tedbirleri tutuklamaya öncelikli alternatif koruma yöntemleridir. Tutuklamadan umulan kamusal yarar, durumuna uygun adli kontrol hükümleriyle (yurt dışı çıkış yasağı, belirli günlerde imza verme vb.) eksiksiz sağlanabilecektir. CMK m. 101/2 gereğince, 'adli kontrol uygulamasının neden yetersiz kalacağının somut olgularla gerekçelendirilmesi' yasal bir zorunluluk olmasına rağmen, bu husus somutlaştırılmadan doğrudan tutuklamaya hükmedilmesi usul ve yasaya aykırıdır.\n8- AİHS m. 5 VE ANAYASA MAHKEMESİ İÇTİHATLARI IŞIĞINDA KİŞİ HÜRRİYETİ VE GÜVENLİĞİ HAKKI: AİHS m. 5 ve Anayasa m. 19 ile korunan kişi hürriyeti ve güvenliği hakkı asıl, tutukluluk ise istisnadır. AİHM ve AYM'nin yerleşik içtihatlarında defaatle vurgulandığı üzere, otomatik ve basma kalıp formüllerle verilen tutuklama kararları hak ihlalidir. Başka ve daha hafif bir önlemle sağlanabilecek yarar için en ağır tedbire başvurulması hukuka uygun görülemez.",
+        "sonuc": "Yukarıda arz ve izah edilen ve Mahkemenizce re'sen gözetilecek nedenlerle;\n1- Müvekkil hakkındaki haksız ve hukuki dayanaktan yoksun TUTUKLAMA / TUTUKLULUK HALİNİN DEVAMI KARARINA İTİRAZLARIMIZIN KABULÜ ile tutuklama kararının kaldırılarak müvekkilin BİHAKKIN TAHLİYESİNE ve TUTUKSUZ YARGILANMAK ÜZERE SERBEST BIRAKILMASINA,\n2- Mahkemenizin aksi kanaatte olması halinde, CMK m. 109 gereğince durumuna uygun (gerekirse en ağır) ADLİ KONTROL HÜKÜMLERİ UYGULANMAK SURETİYLE MÜVEKKİLİN SERBEST BIRAKILMASINA karar verilmesini vekâleten saygıyla arz ve talep ederiz."
     },
     "📋 Adli Kontrol Kararına İtiraz Dilekçesi": {
         "mahkeme": "MERSİN NÖBETÇİ ASLİYE CEZA MAHKEMESİNE\nGönderilmek Üzere\nMERSİN [..]. SULH CEZA HÂKİMLİĞİNE",
@@ -554,7 +613,7 @@ class DilekceApp(tk.Tk):
         paragraphs.append((2, 0, "0.0", None, None, [("Av. Lütfi Serkan SAYOĞLU\n", True, False, False)]))
         paragraphs.append((2, 0, "0.0", None, None, [("(e-imzalıdır)\n", False, True, False)]))
 
-        desktop_dir = os.path.expanduser("~/Desktop")
+        desktop_dir = get_desktop_dir()
         clean_title = mahkeme.split("MAHKEMESİ")[0].replace("\n", " ").strip() if "MAHKEMESİ" in mahkeme else "Dilekce"
         safe_filename = f"{clean_title} - {self.combo_tpl.get().split(' ')[1]}.udf"
         safe_filename = "".join(c for c in safe_filename if c not in r'\/:*?"<>|')
@@ -564,7 +623,7 @@ class DilekceApp(tk.Tk):
         try:
             build_udf(paragraphs, out_path)
             if open_after:
-                subprocess.Popen(["open", "-a", "Uyap Doküman Editörü", out_path])
+                open_in_uyap(out_path)
                 messagebox.showinfo("Başarılı", f"Dilekçe UDF oluşturuldu ve UYAP'ta açıldı!\n\nDosya: {safe_filename}")
             else:
                 messagebox.showinfo("Başarılı", f"Dilekçe UDF olarak Masaüstüne kaydedildi:\n\n{out_path}")
