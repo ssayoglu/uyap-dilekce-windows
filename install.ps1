@@ -1,13 +1,25 @@
 # UYAP Dilekçe Hazırlayıcı - Windows Kurulum Betiği (Sıfır Bağımlılık, Otomatik Python 3 Kurulumu)
-$ErrorActionPreference = "Stop"
+$ProgressPreference = 'SilentlyContinue'
 
 Write-Host "========================================================" -ForegroundColor Cyan
 Write-Host "⚖️  UYAP Dilekçe & Şablon Yöneticisi (Windows Kurulum)" -ForegroundColor Cyan
 Write-Host "========================================================" -ForegroundColor Cyan
 
-$TargetDir = "$env:USERPROFILE\.dilekce-hazirlayici"
+$TargetDir = Join-Path $env:USERPROFILE ".dilekce-hazirlayici"
 $ZipUrl = "https://github.com/ssayoglu/uyap-dilekce-windows/archive/refs/heads/main.zip"
+
 $DesktopPath = [System.Environment]::GetFolderPath("Desktop")
+if (!$DesktopPath -or !(Test-Path -LiteralPath $DesktopPath)) {
+    $DesktopPath = Join-Path $env:USERPROFILE "Desktop"
+}
+if (!(Test-Path -LiteralPath $DesktopPath)) {
+    $DesktopPath = Join-Path $env:USERPROFILE "Masaüstü"
+}
+
+# Hedef klasörü önceden oluştur
+if (!(Test-Path -LiteralPath $TargetDir)) {
+    New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
+}
 
 # 1. Python 3 Kontrolü ve Gerekirse Otomatik Kurulum
 function Ensure-Python {
@@ -35,7 +47,7 @@ function Ensure-Python {
         "$env:ProgramFiles\Python310\python.exe"
     )
     foreach ($candidate in $candidatePaths) {
-        if (Test-Path $candidate) {
+        if (Test-Path -LiteralPath $candidate) {
             Write-Host "✅ Python bulundu: $candidate" -ForegroundColor Green
             $pyDir = Split-Path -Parent $candidate
             $env:Path = "$pyDir;$pyDir\Scripts;$env:Path"
@@ -64,13 +76,13 @@ function Ensure-Python {
     if (!$pyCheck) {
         Write-Host "📥 Python.org üzerinden resmi yükleyici indiriliyor (Python 3.12 64-bit)..." -ForegroundColor Yellow
         $installerUrl = "https://www.python.org/ftp/python/3.12.7/python-3.12.7-amd64.exe"
-        $installerPath = "$env:TEMP\python_installer.exe"
+        $installerPath = Join-Path $TargetDir "python_installer.exe"
         try {
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath -UseBasicParsing
             Write-Host "⚙️  Python arka planda sessizce kuruluyor (PATH otomatik yapılandırılıyor)..." -ForegroundColor Yellow
             $installProc = Start-Process -FilePath $installerPath -ArgumentList "/quiet InstallAllUsers=0 PrependPath=1 Include_test=0 Include_pip=1" -Wait -PassThru
-            Remove-Item -Force $installerPath -ErrorAction SilentlyContinue
+            try { Remove-Item -LiteralPath $installerPath -Force -ErrorAction SilentlyContinue } catch {}
             Write-Host "✅ Python 3 başarıyla kuruldu." -ForegroundColor Green
         } catch {
             Write-Host "❌ Otomatik Python kurulum hatası: $_" -ForegroundColor Red
@@ -98,31 +110,36 @@ try {
     }
 } catch {}
 
-# 2. Klasörü hazırla
-if (!(Test-Path $TargetDir)) {
-    New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
-}
-
-# 3. Dosyaları İndir ve Çıkart
+# 2. Dosyaları İndir ve Çıkart
 Write-Host "📥 Uygulama dosyaları indiriliyor..." -ForegroundColor Yellow
-$TmpZip = "$env:TEMP\dilekce_win.zip"
-$TmpExtract = "$env:TEMP\dilekce_win_extracted"
+$TmpZip = Join-Path $TargetDir "dilekce_win.zip"
+$TmpExtract = Join-Path $TargetDir "dilekce_extracted"
 
-if (Test-Path $TmpZip) { Remove-Item -Force $TmpZip }
-if (Test-Path $TmpExtract) { Remove-Item -Recurse -Force $TmpExtract }
+if (Test-Path -LiteralPath $TmpZip) {
+    try { Remove-Item -LiteralPath $TmpZip -Force -ErrorAction SilentlyContinue } catch {}
+}
+if (Test-Path -LiteralPath $TmpExtract) {
+    try { Remove-Item -LiteralPath $TmpExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+}
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Invoke-WebRequest -Uri $ZipUrl -OutFile $TmpZip -UseBasicParsing
-Expand-Archive -Path $TmpZip -DestinationPath $TmpExtract -Force
-Copy-Item -Path "$TmpExtract\uyap-dilekce-windows-main\*" -Destination $TargetDir -Recurse -Force
+Expand-Archive -LiteralPath $TmpZip -DestinationPath $TmpExtract -Force
 
-Remove-Item -Force $TmpZip -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force $TmpExtract -ErrorAction SilentlyContinue
+$sourceDir = Join-Path $TmpExtract "uyap-dilekce-windows-main"
+if (Test-Path -LiteralPath $sourceDir) {
+    Get-ChildItem -LiteralPath $sourceDir | ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination $TargetDir -Recurse -Force
+    }
+}
 
-# 4. Masaüstüne Logolu Kısayol Oluştur (.lnk)
+try { Remove-Item -LiteralPath $TmpZip -Force -ErrorAction SilentlyContinue } catch {}
+try { Remove-Item -LiteralPath $TmpExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+
+# 3. Masaüstüne Logolu Kısayol Oluştur (.lnk)
 Write-Host "📁 Masaüstü kısayolu oluşturuluyor..." -ForegroundColor Yellow
 $WshShell = New-Object -ComObject WScript.Shell
-$Shortcut = $WshShell.CreateShortcut("$DesktopPath\Dilekçe Hazırlayıcı.lnk")
+$Shortcut = $WshShell.CreateShortcut((Join-Path $DesktopPath "Dilekçe Hazırlayıcı.lnk"))
 
 $pythonwCmd = Get-Command pythonw -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($pythonwCmd) {
@@ -130,8 +147,8 @@ if ($pythonwCmd) {
 } else {
     $pyNormal = Get-Command python -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($pyNormal) {
-        $pywCandidate = (Split-Path -Parent $pyNormal.Source) + "\pythonw.exe"
-        if (Test-Path $pywCandidate) {
+        $pywCandidate = Join-Path (Split-Path -Parent $pyNormal.Source) "pythonw.exe"
+        if (Test-Path -LiteralPath $pywCandidate) {
             $Shortcut.TargetPath = $pywCandidate
         } else {
             $Shortcut.TargetPath = $pyNormal.Source
@@ -144,8 +161,9 @@ if ($pythonwCmd) {
 $Shortcut.Arguments = """$TargetDir\win_app.py"""
 $Shortcut.WorkingDirectory = "$TargetDir"
 $Shortcut.Description = "UYAP Dilekçe & Şablon Yöneticisi"
-if (Test-Path "$TargetDir\AppIcon.ico") {
-    $Shortcut.IconLocation = "$TargetDir\AppIcon.ico,0"
+$iconFile = Join-Path $TargetDir "AppIcon.ico"
+if (Test-Path -LiteralPath $iconFile) {
+    $Shortcut.IconLocation = "$iconFile,0"
 }
 $Shortcut.Save()
 

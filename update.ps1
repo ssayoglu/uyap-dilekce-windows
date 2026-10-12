@@ -1,15 +1,22 @@
 # UYAP Dilekçe Hazırlayıcı - Windows Güncelleme Betiği
-$ErrorActionPreference = "Stop"
+$ProgressPreference = 'SilentlyContinue'
 
 Write-Host "========================================================" -ForegroundColor Cyan
 Write-Host "⚖️  UYAP Dilekçe & Şablon Yöneticisi (Windows Güncelleme)" -ForegroundColor Cyan
 Write-Host "========================================================" -ForegroundColor Cyan
 
-$TargetDir = "$env:USERPROFILE\.dilekce-hazirlayici"
-$DesktopPath = [System.Environment]::GetFolderPath("Desktop")
+$TargetDir = Join-Path $env:USERPROFILE ".dilekce-hazirlayici"
 $ZipUrl = "https://github.com/ssayoglu/uyap-dilekce-windows/archive/refs/heads/main.zip"
 
-if (!(Test-Path $TargetDir)) {
+$DesktopPath = [System.Environment]::GetFolderPath("Desktop")
+if (!$DesktopPath -or !(Test-Path -LiteralPath $DesktopPath)) {
+    $DesktopPath = Join-Path $env:USERPROFILE "Desktop"
+}
+if (!(Test-Path -LiteralPath $DesktopPath)) {
+    $DesktopPath = Join-Path $env:USERPROFILE "Masaüstü"
+}
+
+if (!(Test-Path -LiteralPath $TargetDir)) {
     Write-Host "⚠️  Uygulama henüz kurulu değil. Kurulum başlatılıyor..." -ForegroundColor Yellow
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-Expression (Invoke-RestMethod "https://raw.githubusercontent.com/ssayoglu/uyap-dilekce-windows/main/install.ps1")
@@ -31,7 +38,7 @@ try {
     }
 } catch {}
 
-if (Test-Path "$TargetDir\.git") {
+if (Test-Path -LiteralPath (Join-Path $TargetDir ".git")) {
     Write-Host "🔄 Git deposundan güncellemeler alınıyor..." -ForegroundColor Yellow
     Push-Location $TargetDir
     try {
@@ -42,24 +49,34 @@ if (Test-Path "$TargetDir\.git") {
     Pop-Location
 } else {
     Write-Host "📥 Son sürüm dosyaları indiriliyor..." -ForegroundColor Yellow
-    $TmpZip = "$env:TEMP\dilekce_win_update.zip"
-    $TmpExtract = "$env:TEMP\dilekce_win_update_extracted"
+    $TmpZip = Join-Path $TargetDir "dilekce_update.zip"
+    $TmpExtract = Join-Path $TargetDir "dilekce_update_extracted"
 
-    if (Test-Path $TmpZip) { Remove-Item -Force $TmpZip }
-    if (Test-Path $TmpExtract) { Remove-Item -Recurse -Force $TmpExtract }
+    if (Test-Path -LiteralPath $TmpZip) {
+        try { Remove-Item -LiteralPath $TmpZip -Force -ErrorAction SilentlyContinue } catch {}
+    }
+    if (Test-Path -LiteralPath $TmpExtract) {
+        try { Remove-Item -LiteralPath $TmpExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    }
 
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri $ZipUrl -OutFile $TmpZip -UseBasicParsing
-    Expand-Archive -Path $TmpZip -DestinationPath $TmpExtract -Force
-    Copy-Item -Path "$TmpExtract\uyap-dilekce-windows-main\*" -Destination $TargetDir -Recurse -Force
+    Expand-Archive -LiteralPath $TmpZip -DestinationPath $TmpExtract -Force
 
-    Remove-Item -Force $TmpZip -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force $TmpExtract -ErrorAction SilentlyContinue
+    $sourceDir = Join-Path $TmpExtract "uyap-dilekce-windows-main"
+    if (Test-Path -LiteralPath $sourceDir) {
+        Get-ChildItem -LiteralPath $sourceDir | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $TargetDir -Recurse -Force
+        }
+    }
+
+    try { Remove-Item -LiteralPath $TmpZip -Force -ErrorAction SilentlyContinue } catch {}
+    try { Remove-Item -LiteralPath $TmpExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 }
 
 # Masaüstü kısayolunu yenile
 $WshShell = New-Object -ComObject WScript.Shell
-$Shortcut = $WshShell.CreateShortcut("$DesktopPath\Dilekçe Hazırlayıcı.lnk")
+$Shortcut = $WshShell.CreateShortcut((Join-Path $DesktopPath "Dilekçe Hazırlayıcı.lnk"))
 
 $pythonwCmd = Get-Command pythonw -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($pythonwCmd) {
@@ -67,8 +84,8 @@ if ($pythonwCmd) {
 } else {
     $pyNormal = Get-Command python -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($pyNormal) {
-        $pywCandidate = (Split-Path -Parent $pyNormal.Source) + "\pythonw.exe"
-        if (Test-Path $pywCandidate) {
+        $pywCandidate = Join-Path (Split-Path -Parent $pyNormal.Source) "pythonw.exe"
+        if (Test-Path -LiteralPath $pywCandidate) {
             $Shortcut.TargetPath = $pywCandidate
         } else {
             $Shortcut.TargetPath = $pyNormal.Source
@@ -81,16 +98,17 @@ if ($pythonwCmd) {
 $Shortcut.Arguments = """$TargetDir\win_app.py"""
 $Shortcut.WorkingDirectory = "$TargetDir"
 $Shortcut.Description = "UYAP Dilekçe & Şablon Yöneticisi"
-if (Test-Path "$TargetDir\AppIcon.ico") {
-    $Shortcut.IconLocation = "$TargetDir\AppIcon.ico,0"
+$iconFile = Join-Path $TargetDir "AppIcon.ico"
+if (Test-Path -LiteralPath $iconFile) {
+    $Shortcut.IconLocation = "$iconFile,0"
 }
 $Shortcut.Save()
 
-$verFile = "$TargetDir\version.json"
+$verFile = Join-Path $TargetDir "version.json"
 $newVer = "1.5.0"
-if (Test-Path $verFile) {
+if (Test-Path -LiteralPath $verFile) {
     try {
-        $json = Get-Content $verFile -Raw | ConvertFrom-Json
+        $json = Get-Content -LiteralPath $verFile -Raw | ConvertFrom-Json
         $newVer = $json.version
     } catch {}
 }
