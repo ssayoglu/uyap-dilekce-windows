@@ -47,8 +47,10 @@ Proje 3 farklı amaca göre ayrıştırılmış ve GitHub ile tam senkronize edi
 ```text
 ├── server.py             # HTTP Backend (Port: 5678) + build_udf (XML Motoru) + AI Gemini + HTML_PAGE + MAZERET_HTML
 ├── win_app.py            # Windows Edge/Chrome App Launcher & GUI Wrapper
-├── Baslat.bat            # Windows tek tıkla başlatma betiği
-├── install.ps1           # Windows PowerShell tek komutlu kurulum betiği
+├── Baslat.bat            # Windows tek tıkla başlatma betiği (Gerekirse oto-kurulum)
+├── Guncelle.bat          # Windows tek tıkla güncelleme betiği
+├── install.ps1           # Windows PowerShell tek komutlu kurulum (Oto-Python 3)
+├── update.ps1            # Windows PowerShell tek komutlu güncelleme betiği
 ├── version.json          # Sürüm kontrol ve otomatik güncelleme bildirim dosyası (v1.5.0)
 ├── AppIcon.ico           # Windows masaüstü kısayol simgesi (256x256)
 ├── dilekce_gui.py        # Alternatif Tkinter masaüstü arayüzü

@@ -4,18 +4,33 @@ Avukatlar ve hukuk büroları için geliştirilmiş; **Yapay Zekâ (Gemini 3.6 F
 
 ---
 
-## 🚀 Windows Hızlı Kurulum (Tek Satır PowerShell)
+## 🚀 Windows Hızlı Kurulum (Tek Komutla Sıfır Bağımlılık)
 
-Windows bilgisayarınızda **PowerShell**'i açıp (Başlat menüsüne `PowerShell` yazarak) aşağıdaki komutu yapıştırıp `Enter` tuşuna basmanız yeterlidir:
+Windows bilgisayarınızda **PowerShell**'i açıp (Başlat menüsüne `PowerShell` yazarak) aşağıdaki tek satır komutu yapıştırıp `Enter` tuşuna basmanız yeterlidir:
 
 ```powershell
 irm https://raw.githubusercontent.com/ssayoglu/uyap-dilekce-windows/main/install.ps1 | iex
 ```
 
+> **⚡ Otomatik Python 3 Desteği:**
+> Sisteminizde daha önceden Python 3 kurulu olmasa dahi, kurulum betiği bunu otomatik tespit eder ve arka planda resmi Python 3'ü sessizce kurup ortam değişkenlerini ayarlar. Sizin hiçbir ek program kurmanıza gerek kalmaz.
+>
 > **Kurulum tamamlandığında:**
-> - Dosyalar `%USERPROFILE%\.dilekce-hazirlayici` altına kurulur.
-> - Masaüstünüze resmi logolu **`Dilekçe Hazırlayıcı`** kısayolu oluşturulur.
+> - Dosyalar `%USERPROFILE%\.dilekce-hazirlayici` altına yerleştirilir.
+> - Masaüstünüze resmi logolu **`Dilekçe Hazırlayıcı`** kısayolu eklenir.
 > - Çift tıklayarak doğrudan kullanmaya başlayabilirsiniz!
+
+---
+
+## 🔄 Windows Güncelleme (Tek Komut)
+
+Uygulama her açıldığında arka planda güncellemeleri otomatik denetler. İsterseniz dilediğiniz zaman tek satır PowerShell komutuyla en son sürüme güncelleyebilirsiniz:
+
+```powershell
+irm https://raw.githubusercontent.com/ssayoglu/uyap-dilekce-windows/main/update.ps1 | iex
+```
+
+*(Veya uygulama klasöründeki `Guncelle.bat` dosyasına çift tıklayabilirsiniz.)*
 
 ---
 
@@ -23,7 +38,7 @@ irm https://raw.githubusercontent.com/ssayoglu/uyap-dilekce-windows/main/install
 
 1. Bu depoyu ZIP olarak indirin ve dilediğiniz bir klasöre çıkartın.
 2. `Baslat.bat` dosyasına çift tıklayarak uygulamayı başlatın.
-   *(Sisteminizde Python 3 kurulu olmalıdır. İlk çalıştırmada Edge/Chrome uygulama modunda veya tarayıcınızda açılacaktır.)*
+   *(Eğer Python 3 sistemde yoksa, `Baslat.bat` otomatik kurulumu kendisi tetikler.)*
 
 ---
 
@@ -71,6 +86,8 @@ irm https://raw.githubusercontent.com/ssayoglu/uyap-dilekce-windows/main/install
 
 ### 🚀 Sürüm 1.5.0 (2026-10-12)
 - ✨ **Yapay Zekâ Destekli Dilekçe Oluşturucu:** Gemini 3.6 Flash entegrasyonu; serbest olay anlatımından Türk mevzuatına tam uyumlu UYAP dilekçesi üretimi.
+- ⚙️ **Sıfır Bağımlılık (Zero-Dependency) Kurulum:** PowerShell kurulum betiği sistemde Python 3 yoksa dahi otomatik indirip kuracak şekilde geliştirildi.
+- 🔄 **Tek Satır Güncelleme Betiği (`update.ps1` & `Guncelle.bat`):** GitHub üzerinden tek tıkla veya tek komutla güncelleme alma yeteneği eklendi.
 - ⚠️ **Kırmızı Hukuki Risk & Süre Tespiti:** Tespit edilen süre, delil veya usul risklerinin dilekçede ve UYAP çıktısında kırmızı renkle gösterilmesi.
 - 🎯 **Dilekçe Türü & Mahkeme Seçici:** Kullanıcının seçtiği veya otomatik algılanan hukuk dalına (Ceza, Hukuk, İcra, İş, Aile, Ticaret, İdare vb.) göre özelleştirilmiş hukuki tahlil.
 - 🎨 **Saf Siyah Metin Standardı:** Tüm UDF çıktılarında `foreground="-16777216"` tanımlanarak UYAP Doküman Editörü'ndeki lacivert yazı sapması giderildi.
